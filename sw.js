@@ -1,73 +1,41 @@
-# 📱 Fluxo – Controle Financeiro (PWA)
+const CACHE = 'fluxo-v1';
+const ASSETS = [
+  '/index.html',
+  '/manifest.json',
+  'https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap',
+  'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js'
+];
 
-App de controle de gastos e finanças pessoais.
-Funciona offline e pode ser instalado no Android como um app nativo.
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE).then(c => {
+      // Cache local assets only (external may fail offline)
+      return c.addAll(['/index.html', '/manifest.json']).catch(() => {});
+    })
+  );
+  self.skipWaiting();
+});
 
----
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
 
-## 🚀 Como hospedar no GitHub Pages (grátis, 5 minutos)
-
-### Passo 1 – Crie uma conta no GitHub
-Acesse https://github.com e crie uma conta gratuita.
-
-### Passo 2 – Crie um repositório
-1. Clique em **"New repository"**
-2. Nome: `fluxo-financas` (ou qualquer nome)
-3. Deixe **Public**
-4. Clique em **"Create repository"**
-
-### Passo 3 – Faça upload dos arquivos
-1. Na página do repositório, clique em **"uploading an existing file"**
-2. Arraste **todos os arquivos desta pasta** (index.html, manifest.json, sw.js e a pasta icons/)
-3. Clique em **"Commit changes"**
-
-### Passo 4 – Ative o GitHub Pages
-1. Vá em **Settings** > **Pages**
-2. Em "Source", selecione **"Deploy from a branch"**
-3. Branch: **main**, pasta: **/ (root)**
-4. Clique em **Save**
-5. Aguarde ~1 minuto → seu app estará em:
-   `https://SEU-USUARIO.github.io/fluxo-financas`
-
----
-
-## 📲 Como instalar no Android
-
-1. Abra o link do app no **Google Chrome**
-2. Aguarde alguns segundos → aparecerá uma mensagem:
-   **"Adicionar Fluxo à tela inicial"**
-3. Toque em **Instalar** (ou Adicionar)
-4. O ícone aparecerá na sua tela inicial como um app normal! ✅
-
-> O app funciona **offline** após a primeira visita.
-> Os dados são salvos **no próprio celular** (localStorage).
-
----
-
-## 📁 Estrutura dos arquivos
-
-```
-fluxo-pwa/
-├── index.html      → App principal
-├── manifest.json   → Configurações do PWA
-├── sw.js           → Service Worker (modo offline)
-└── icons/
-    ├── icon-192.png
-    └── icon-512.png
-```
-
----
-
-## ✨ Funcionalidades
-
-- ➕ Adicionar receitas e despesas com categoria
-- 📅 Navegação por mês
-- 📊 Gráfico e ranking por categoria
-- ⚠️ Alerta quando gastos passam de 85% da renda
-- 💾 Dados salvos no celular (não perde ao fechar)
-- 📴 Funciona sem internet
-- 📲 Instalável como app Android
-
----
-
-Desenvolvido com ♥ usando HTML, CSS e JavaScript puro.
+self.addEventListener('fetch', e => {
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      if (cached) return cached;
+      return fetch(e.request).then(res => {
+        if (res && res.status === 200 && res.type !== 'opaque') {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match('/index.html'));
+    })
+  );
+});
